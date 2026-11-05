@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-"@abp/aspnetcore.mvc.ui.theme.leptonxlite@~5.7.0":
+"@abp/aspnetcore.mvc.ui.theme.leptonxlite@~5.7.1":
   version "5.7.1"
   resolved "https://registry.yarnpkg.com/@abp/aspnetcore.mvc.ui.theme.leptonxlite/-/aspnetcore.mvc.ui.theme.leptonxlite-5.7.1.tgz#651b49a227a746fd4d1cb9cb799c3a47d2a48be4"
   integrity sha512-kGhNfcCk6fc6vAGE+q6rb7vV7dOUAqWv5524QChLkVxTt4MXjBgL77bd1khdMxw/cT9ay/OLsLmuOLoUfxwnHg==
