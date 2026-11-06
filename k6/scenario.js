@@ -7,7 +7,12 @@
 //
 // Run: k6 run -e BENCH_PASSWORD=<seed password> --vus 1 --iterations 1 k6/scenario.js
 // Env: BASE_URL (default https://localhost:44377), BENCH_PASSWORD (required), THINK_TIME seconds between groups
-//      (default 1), SESSION_ITERATIONS (default 10).
+//      (default 1), SESSION_ITERATIONS (default 10), MAX_VUS (default and cap: seeded accounts).
+// Load profiles (open model: iterations started per second, so every target gets exactly the same load):
+//  MODE=smoke (default)  VUs/iterations from the CLI.
+//  MODE=fixed  RATE=<it/s> WARMUP_S=120 DURATION_S=300   warm-up, then the measured scenario "measure".
+//  MODE=probe  PROBE_RATES=2,4,... STEP_S=60             warm-up, then one scenario "step_NNN" per rate.
+// Measured scenarios get always-passing thresholds so their (and their groups') metrics appear in --summary-export.
 import http from 'k6/http';
 import exec from 'k6/execution';
 import { check, group, sleep } from 'k6';
@@ -16,16 +21,70 @@ const BASE = __ENV.BASE_URL || 'https://localhost:44377';
 const PASSWORD = __ENV.BENCH_PASSWORD;
 const THINK_TIME = Number(__ENV.THINK_TIME ?? 1);
 const SESSION_ITERATIONS = Number(__ENV.SESSION_ITERATIONS ?? 10);
-const SEEDED_USERS = 200;
+const SEEDED_USERS = 1000;
 // Unique per k6 process and VU, so names never repeat across runs on the same database either.
 const RUN = Date.now().toString(36);
 
 if (!PASSWORD) throw new Error('BENCH_PASSWORD is required (password of the seeded admin / bench_vu_n users)');
 
+const MODE = __ENV.MODE || 'smoke';
+const MAX_VUS = Math.min(Number(__ENV.MAX_VUS ?? SEEDED_USERS), SEEDED_USERS);
+const GROUPS = ['01_login', '02_home', '03_users', '04_roles', '05_tenants', '06_settings', '07_profile', '08_language', '09_logout'];
+// Scenarios run back to back with this gap, so they never overlap and reuse the same (already logged-in) VUs.
+const GRACE_S = 10;
+
+function arrival(rate, durationS, startS) {
+    return {
+        executor: 'constant-arrival-rate', rate, timeUnit: '1s', duration: `${durationS}s`, startTime: `${startS}s`,
+        gracefulStop: `${GRACE_S}s`,
+        // One iteration takes ~10 s with THINK_TIME=1; keep headroom so slow responses don't drop iterations early.
+        preAllocatedVUs: Math.min(MAX_VUS, Math.ceil(rate * 12)), maxVUs: MAX_VUS,
+    };
+}
+
+function buildScenarios() {
+    if (MODE === 'fixed') {
+        const rate = Number(__ENV.RATE);
+        if (!(rate > 0)) throw new Error('MODE=fixed needs RATE (iterations per second)');
+        const warmup = Number(__ENV.WARMUP_S ?? 120);
+        return { warmup: arrival(rate, warmup, 0), measure: arrival(rate, Number(__ENV.DURATION_S ?? 300), warmup + GRACE_S) };
+    }
+    if (MODE === 'probe') {
+        const rates = (__ENV.PROBE_RATES || '2,4,6,8,10,12,14,16,20,24,28,32').split(',').map(Number);
+        const step = Number(__ENV.STEP_S ?? 60);
+        const scenarios = { warmup: arrival(rates[0], step, 0) };
+        rates.forEach((r, i) => { scenarios[`step_${String(r).padStart(3, '0')}`] = arrival(r, step, (i + 1) * (step + GRACE_S)); });
+        return scenarios;
+    }
+    if (MODE !== 'smoke') throw new Error(`unknown MODE ${MODE}`);
+    return undefined;
+}
+
+function summaryThresholds(scenarioNames) {
+    const thresholds = {};
+    for (const s of scenarioNames) {
+        const add = (metric, expr) => { thresholds[`${metric}{scenario:${s}}`] = [expr]; };
+        add('http_req_duration', 'max>=0');
+        add('http_req_failed', 'rate>=0');
+        add('http_reqs', 'count>=0');
+        add('iterations', 'count>=0');
+        add('dropped_iterations', 'count>=0');
+        add('checks', 'rate>=0');
+        for (const g of GROUPS) {
+            thresholds[`http_req_duration{scenario:${s},group:::${g}}`] = ['max>=0'];
+            thresholds[`group_duration{scenario:${s},group:::${g}}`] = ['max>=0'];
+        }
+    }
+    return thresholds;
+}
+
+const scenarios = buildScenarios();
+
 export const options = {
     insecureSkipTLSVerify: true, // ASP.NET Core development certificate
     noCookiesReset: true, // k6 clears cookies every iteration by default, which would drop the session
     summaryTrendStats: ['avg', 'med', 'p(95)', 'p(99)', 'max'],
+    ...(scenarios && { scenarios, thresholds: summaryThresholds(Object.keys(scenarios).filter((s) => s !== 'warmup')) }),
 };
 
 const HTML = { accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' };
