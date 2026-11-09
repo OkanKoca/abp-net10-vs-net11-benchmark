@@ -28,3 +28,6 @@ INSERT INTO "AbpUserRoles" ("UserId", "RoleId", "TenantId")
 SELECT md5('bench_vu_' || n)::uuid, r."Id", NULL
 FROM "AbpRoles" r, generate_series(1, 1000) AS n
 WHERE r."NormalizedName" = 'ADMIN';
+
+-- Populate planner statistics and visibility maps on all tables before snapshotting the template database.
+VACUUM ANALYZE;
