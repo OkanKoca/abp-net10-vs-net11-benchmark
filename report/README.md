@@ -10,6 +10,8 @@ As a supplementary check for the interpretation note (because comparing `net10` 
 
 Both projects were created from the same open-source ABP MVC template (`app`, MVC / Razor Pages, Entity Framework Core, PostgreSQL, LeptonX Lite theme), use identical database schemas and seeded data, and execute the same recorded multi-page user scenario under controlled load.
 
+![Three-target benchmark design](assets/01-three-target-design.png)
+
 ---
 
 ## 2. Versions & Environment
@@ -343,6 +345,8 @@ As a complete, uncompromised end-to-end verification, the entire main matrix acr
 1. **Heaviest scenario groups (`05_tenants`, `03_users`, `01_login`):**
    * Consistently across all batches, `05_tenants` (p95 ~73–91 ms), `03_users` (p95 ~62–75 ms), and `01_login` (p95 ~54–71 ms) have the highest latencies versus 8–30 ms for `02_home`, `04_roles`, `06_settings`, `07_profile`, and `08_language`.
    * Likely cause **(inference, not profiled)**: user and tenant creation triggers password hashing (PBKDF2) and multiple database writes.
+
+![HTTP p95 latency by functional group](assets/04-application-feature-performance.png)
 2. **Thermal & Saturation Knee Sensitivity:**
    * At ~50% CPU load (isolated 6 it/s), latency is flat at ~34 ms p95.
    * When sustained continuous load pushes CPU to ~79% (as in the 2.5-hour `main` marathon), the system operates near the saturation knee (8 it/s = ~97% CPU), where minor queuing differences cause significant latency amplification.
@@ -361,6 +365,10 @@ Combining all validated data across the full load spectrum (2, 4, 6, 7, and 8 it
 | **6 it/s** (~75% load) | `net10`<br>`net10-rt11`<br>`net11` | 478.1<br>479.1<br>478.8 | 12.8<br>11.7<br>11.6 | 38.3<br>**34.5**<br>**34.7** | 102.1<br>97.0<br>96.7 | 55.0%<br>**50.3%**<br>**50.6%** | 57.0%<br>55.6%<br>55.6% | 759<br>739<br>738 | 355<br>321<br>311 | **.NET 11 wins clearly:** -9.5% p95, -4.4% CPU, -44 MB heap |
 | **7 it/s** (~90% knee) | `net10`<br>`net10-rt11`<br>`net11` | 557.5<br>557.7<br>557.2 | 13.1<br>13.4<br>13.3 | 39.5<br>40.3<br>40.2 | 108.9<br>113.0<br>112.9 | 62.6%<br>63.0%<br>63.1% | 69.1%<br>70.4%<br>69.5% | 790<br>793<br>798 | 375<br>348<br>353 | **Pre-saturation parity:** rock solid at ~40 ms, 0 errors |
 | **8 it/s** (Saturation cliff) | `net10`<br>`net11` | 625.3<br>588.9 | 16.5<br>19.7 | 195.8<br>392.9 | 364.8<br>1056.8 | 97.4%<br>97.5% | 88.7%<br>91.4% | 866<br>906 | — | **Hardware saturation:** CPU maxed out (97%), dropped iterations begin |
+
+![HTTP p95 latency across load levels](assets/02-http-p95-by-load.png)
+
+![Performance and resource usage at 6 it/s](assets/03-performance-resource-usage.png)
 
 **The 3 Unified Architectural Takeaways:**
 1. **.NET 11 Runtime is Structurally Superior:** Under sustained production load (4 to 6 it/s), .NET 11 achieves measurably higher throughput efficiency: ~9.5% lower tail latency, ~4.5% less CPU consumption, and ~44 MB lower heap footprint.

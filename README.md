@@ -8,6 +8,8 @@ End-to-end load test comparing an empty ABP MVC application on stable ABP 10.7.1
 | `net11` | ABP `11.0.0-rc.1` (`net11.0`) | .NET `11.0.0-rc.3` | Primary — Preview stack |
 | `net10-rt11` | ABP `10.7.1` (`net10.0`) | .NET `11.0.0-rc.3` (`DOTNET_ROLL_FORWARD=LatestMajor`) | Supplementary — Isolates the .NET runtime difference from ABP package changes |
 
+![Three-target benchmark design](report/assets/01-three-target-design.png)
+
 ### Key Findings Summary
 
 | Metric / Test | `net10` (ABP 10 + .NET 10) | `net10-rt11` (ABP 10 on .NET 11) | `net11` (ABP 11 + .NET 11) | .NET 11 Advantage |
@@ -17,6 +19,8 @@ End-to-end load test comparing an empty ABP MVC application on stable ABP 10.7.1
 | **6 it/s GC Heap Size** | 355 MB | 321 MB | **311 MB** | **~44 MB less heap** |
 | **7 it/s Saturation Knee (p95)** | 39.5 ms | 40.3 ms | **40.2 ms** | Rock-solid at capacity edge |
 | **ABP 11 Package Overhead** | — | Baseline | **+0.2 ms** (0.5%) | **Zero package regression** |
+
+![Comparison of response time, CPU, and memory usage](report/assets/03-performance-resource-usage.png)
 
 Full benchmark methodology, tool evaluation, scenario correlation analysis, and findings are documented in [`report/README.md`](report/README.md). Exact package, runtime, and hardware versions are recorded in [`report/versions.md`](report/versions.md).
 
