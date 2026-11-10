@@ -7,10 +7,11 @@
 #   ./scripts/run-bench.ps1 -Mode probe -Repeats 1                                  # capacity probe, net10 + net11
 #   ./scripts/run-bench.ps1 -Mode fixed -Rates 6,12,18                              # measured levels
 #   ./scripts/run-bench.ps1 -Mode fixed -Rates 12 -Targets net10,net10-rt11,net11   # runtime-only comparison
+#   ./scripts/run-bench.ps1 -Mode fixed -Rates 6 -Targets net11-src,net11-src-ra      # runtime-async comparison
 #   ./scripts/run-bench.ps1 -Mode fixed -Rates 4 -Repeats 1 -WarmupS 20 -DurationS 30   # dry run
 param(
     [ValidateSet('fixed', 'probe')][string]$Mode = 'fixed',
-    [ValidateSet('net10', 'net11', 'net10-rt11')][string[]]$Targets = @('net10', 'net11'),
+    [ValidateSet('net10', 'net11', 'net10-rt11', 'net11-src', 'net11-src-ra')][string[]]$Targets = @('net10', 'net11'),
     [int[]]$Rates = @(),
     [int]$Repeats = 3,
     [int]$WarmupS = 120,

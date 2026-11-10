@@ -2,10 +2,12 @@
 #   net10       ABP 10.7.1 on .NET 10
 #   net11       ABP 11.0.0-rc.1 on .NET 11
 #   net10-rt11  the net10 build rolled forward onto the .NET 11 runtime (isolates the runtime difference)
+#   net11-src     net11 with ABP built from source (publish.ps1), runtime-async off
+#   net11-src-ra  net11 with ABP and the app compiled with runtime-async=on
 # -Affinity <hex mask> pins the process from its start (Server GC sizes its heaps from the startup affinity).
 # Without -LogFile it blocks until stopped; with -LogFile it starts in the background and returns the app's PID.
 param(
-    [Parameter(Mandatory)][ValidateSet('net10', 'net11', 'net10-rt11')][string]$Target,
+    [Parameter(Mandatory)][ValidateSet('net10', 'net11', 'net10-rt11', 'net11-src', 'net11-src-ra')][string]$Target,
     [string]$Affinity,
     [string]$LogFile
 )

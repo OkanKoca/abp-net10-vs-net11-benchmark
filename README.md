@@ -202,3 +202,26 @@ node k6/tools/summarize.mjs results/verify-marathon6 report/results-verify-marat
 ./scripts/run-bench.ps1 -Mode fixed -Rates 2,4,6 -Targets net10,net10-rt11,net11 -Repeats 3 -Batch main-validation
 node k6/tools/summarize.mjs results/main-validation report/results-main-validation.md
 ```
+
+### Step 5: Runtime Async — `net11-src` vs `net11-src-ra` (~50 minutes)
+
+.NET 11 ships its own libraries (BCL, ASP.NET Core) compiled with runtime-async, but user code, ABP, EF Core and Npgsql stay on compiler-generated state machines unless they are compiled with `<Features>runtime-async=on</Features>`. This step measures what that flag changes for ABP itself:
+
+| Target | ABP assemblies | Bench.* | Runtime-async in ABP + app |
+|---|---|---|---|
+| `net11-src` | Built from the `11.0.0-rc.1` tag | as `net11` | off |
+| `net11-src-ra` | Same tag, `runtime-async=on` | `runtime-async=on` | on |
+
+Both targets build ABP the same way (`net11.0` only, ConfigureAwait.Fody disabled, since Fody rewrites the state machines that runtime-async does not emit), so the flag is the only difference between them. LeptonX Lite and Studio.Client are not in the ABP repository and stay NuGet packages; EF Core and Npgsql stay as shipped. Both targets use the `net11` database.
+
+```powershell
+# Preparation (once): build ABP from source in both variants, then publish and verify (needs ../abp, a clone of abpframework/abp)
+./scripts/build-abp.ps1
+./scripts/publish.ps1 -Target net11-src,net11-src-ra   # swaps the ABP assemblies and checks the IL with check-runtime-async.ps1
+
+# Measurement (6 it/s, 2 targets x 3 repetitions):
+./scripts/run-bench.ps1 -Mode fixed -Rates 6 -Targets net11-src,net11-src-ra -Repeats 3 -Batch runtime-async
+node k6/tools/summarize.mjs results/runtime-async report/results-runtime-async.md
+```
+
+The `alloc MB/s` column (`dotnet.gc.heap.total_allocated`) is the most direct signal for runtime-async; latency differences may stay within the run-to-run spread.

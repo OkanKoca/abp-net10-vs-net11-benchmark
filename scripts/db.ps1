@@ -2,12 +2,12 @@
 #        and keeps the result as template "Bench_seed_<target>".
 # reset: recreates "Bench" from that template, so every run starts from the same data set.
 param(
-    [Parameter(Mandatory)][ValidateSet('net10', 'net11', 'net10-rt11')][string]$Target,
+    [Parameter(Mandatory)][ValidateSet('net10', 'net11', 'net10-rt11', 'net11-src', 'net11-src-ra')][string]$Target,
     [Parameter(Mandatory)][ValidateSet('seed', 'reset')][string]$Action
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$Target = $Target -replace '-rt11$', '' # same build and data set as net10
+$Target = $Target -replace '-rt11$|-src(-ra)?$', '' # rt11 shares the net10 data set, the src targets the net11 one
 $seedDb = "Bench_seed_$Target"
 
 function Invoke-Sql([string]$Sql, [string]$Database = 'postgres') {

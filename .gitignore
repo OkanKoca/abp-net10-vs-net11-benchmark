@@ -1,6 +1,8 @@
 NOTES.md
 publish/
 results/
+abp-src/
+abp-build/
 
 # raw k6 Studio recordings (contain passwords and session cookies)
 *.raw.har

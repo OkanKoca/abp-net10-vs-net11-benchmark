@@ -46,12 +46,13 @@ function serverStats(counters, docker, from, to) {
     const ws = series('dotnet.process.memory.working_set').map((c) => c.value / 2 ** 20);
     const heap = series('dotnet.gc.last_collection.heap.size').length ? perSecond('dotnet.gc.last_collection.heap.size').map((v) => v / 2 ** 20) : [];
     const gcPause = perSecond('dotnet.gc.pause.time').map((v) => v * 1000);
+    const alloc = perSecond('dotnet.gc.heap.total_allocated').map((v) => v / 2 ** 20);
     const gen2 = series('dotnet.gc.collections ({collection} / 1 sec)[gc.heap.generation=gen2]').reduce((a, c) => a + c.value, 0);
     const tpQueue = series('dotnet.thread_pool.queue.length').map((c) => c.value);
     const db = docker.filter((d) => d.t >= from && d.t < to);
     return {
         cpuAvg: avg(cpu), cpuMax: Math.max(...cpu), wsAvg: avg(ws), wsMax: Math.max(...ws), heapAvg: avg(heap),
-        gcPauseMsPerS: avg(gcPause), gen2, tpQueueMax: Math.max(0, ...tpQueue),
+        gcPauseMsPerS: avg(gcPause), allocMBps: avg(alloc), gen2, tpQueueMax: Math.max(0, ...tpQueue),
         dbCpuAvg: avg(db.map((d) => d.cpu)), dbMemAvg: avg(db.map((d) => d.memMiB)),
     };
 }
@@ -119,11 +120,11 @@ if (batch.mode === 'probe') {
     };
     const sorted = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, 'en', { numeric: true }));
     lines.push('Median of repetitions (min–max).', '',
-        '| rate | target | reps | req/s | avg ms | p95 ms | p99 ms | failed | app CPU % | CPU max % | working set MB | GC heap MB | GC pause ms/s | gen2 GCs | DB CPU % |',
-        '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+        '| rate | target | reps | req/s | avg ms | p95 ms | p99 ms | failed | app CPU % | CPU max % | working set MB | GC heap MB | alloc MB/s | GC pause ms/s | gen2 GCs | DB CPU % |',
+        '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
     for (const [key, rows] of sorted) {
         const [label, target] = key.split('|');
-        lines.push(`| ${label.replace('rate', '')} it/s | ${target} | ${rows.length} | ${cell(rows, 'rps')} | ${cell(rows, 'avg')} | ${cell(rows, 'p95')} | ${cell(rows, 'p99')} | ${pct(median(rows.map((r) => r.failed)))} | ${cell(rows, 'cpuAvg')} | ${cell(rows, 'cpuMax')} | ${cell(rows, 'wsAvg', 0)} | ${cell(rows, 'heapAvg', 0)} | ${cell(rows, 'gcPauseMsPerS')} | ${cell(rows, 'gen2', 0)} | ${cell(rows, 'dbCpuAvg')} |`);
+        lines.push(`| ${label.replace('rate', '')} it/s | ${target} | ${rows.length} | ${cell(rows, 'rps')} | ${cell(rows, 'avg')} | ${cell(rows, 'p95')} | ${cell(rows, 'p99')} | ${pct(median(rows.map((r) => r.failed)))} | ${cell(rows, 'cpuAvg')} | ${cell(rows, 'cpuMax')} | ${cell(rows, 'wsAvg', 0)} | ${cell(rows, 'heapAvg', 0)} | ${cell(rows, 'allocMBps', 0)} | ${cell(rows, 'gcPauseMsPerS')} | ${cell(rows, 'gen2', 0)} | ${cell(rows, 'dbCpuAvg')} |`);
     }
     lines.push('', '## p95 per page group (ms, median of repetitions)', '');
     const groupNames = [...new Set(sorted.flatMap(([, rows]) => Object.keys(rows[0].groups)))].sort();
